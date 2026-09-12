@@ -1,0 +1,34 @@
+# config/alertmanager.yml
+global:
+  # 5분 동안 정상으로 돌아오면 해결된 것으로 처리
+  resolve_timeout: 5m
+  # mailing ...
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: '******@gmail.com'
+  smtp_auth_username: '******@gmail.com'
+  smtp_auth_password: '******'
+
+route:
+  group_by: ['alertname', 'severity']
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 1h
+  #  receiver: 'slack-notifications'
+  #  receiver: 'email-notifications'
+  receiver: 'notifications'
+
+receivers:
+  - name: 'notifications'
+    #  - name: 'slack-notifications'
+    slack_configs:
+      - api_url: https://hooks.slack.com/services/******/******/******
+        send_resolved: true
+        title: '[{{ .Status | toUpper }}] {{ .CommonAnnotations.summary }}'
+        text: >-
+          *경보 이름*: {{ .CommonLabels.alertname }}
+          *심각도*: {{ .CommonLabels.severity }}
+          *상세 내용*: {{ .CommonAnnotations.description }}
+    #  - name: 'email-notifications'
+    email_configs:
+      - to: '******@gmail.com'
+        send_resolved: true

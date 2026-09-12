@@ -1,3 +1,4 @@
+# compose.yml
 services:
   # spring-boot
   app:
@@ -33,15 +34,36 @@ services:
     networks:
       - mon-net
 
-  promtail:
-    image: grafana/promtail:latest
+  #  promtail:
+  #    image: grafana/promtail:latest
+  #    restart: always
+  #    volumes:
+  #      # app -> promtail (pull) -> loki (push)
+  #      - log-data:/var/log/app:ro
+  #      - ./config/promtail.yml:/etc/promtail/config.yml:ro
+  #    command:
+  #      - -config.file=/etc/promtail/config.yml
+  #    depends_on:
+  #      - loki
+  #      - app
+  #    networks:
+  #      - mon-net
+  alloy:
+    image: grafana/alloy:latest
     restart: always
     volumes:
-      # app -> promtail (pull) -> loki (push)
+      # app -> alloy (pull) -> loki (push)
       - log-data:/var/log/app:ro
-      - ./config/promtail.yml:/etc/promtail/config.yml:ro
+      # Alloy configuration
+      #      - ./config/alloy-local.alloy:/etc/alloy/config.alloy:ro
+      - ./config/alloy-cloud.alloy:/etc/alloy/config.alloy:ro
+      # File read position / Alloy state
+      - alloy-data:/var/lib/alloy/data
     command:
-      - -config.file=/etc/promtail/config.yml
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
     depends_on:
       - loki
       - app
@@ -59,6 +81,8 @@ services:
     networks:
       - mon-net
     # loki, prometheus -> grafana
+    volumes:
+      - grafana-data:/var/lib/grafana
 
   prometheus:
     image: prom/prometheus:latest
@@ -66,14 +90,28 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      #      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./config/prometheus-cloud.yml:/etc/prometheus/prometheus.yml:ro
+      - ./config/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
     networks:
       - mon-net
     depends_on:
       - app
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    restart: always
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./config/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    networks:
+      - mon-net
 
 networks:
   mon-net:
 
 volumes:
   log-data:
+  alloy-data:
+  grafana-data:

@@ -1,0 +1,65 @@
+// alloy-cloud.alloy
+
+loki.source.file "spring_boot" {
+  targets = [
+    {
+      __path__      = "/var/log/app/spring-app*.log",
+      "application" = "spring-app",
+      "environment" = "local",
+      "job"         = "spring-boot",
+    },
+  ]
+
+  forward_to = [
+    loki.process.spring_boot.receiver,
+  ]
+
+  tail_from_end = false
+
+  file_match {
+    enabled     = true
+    sync_period = "5s"
+  }
+}
+
+
+loki.process "spring_boot" {
+  forward_to = [
+//    loki.write.local.receiver,
+    loki.write.grafanacloud.receiver,
+  ]
+
+  stage.multiline {
+    firstline     = "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3}"
+    max_wait_time = "3s"
+    max_lines     = 256
+  }
+
+  stage.regex {
+    expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3}) \\[(?P<thread>[^\\]]+)\\] (?P<level>TRACE|DEBUG|INFO|WARN|ERROR)\\s+(?P<logger>\\S+) - (?P<message>.*)"
+  }
+
+  stage.timestamp {
+    source            = "timestamp"
+    format            = "2006-01-02 15:04:05.000"
+    location          = "Asia/Seoul"
+    action_on_failure = "skip"
+  }
+
+  stage.labels {
+    values = {
+      level = "",
+    }
+  }
+}
+
+loki.write "grafanacloud" {
+  endpoint {
+    url = "https://logs-prod-****.grafana.net/loki/api/v1/push"
+
+    basic_auth {
+      username = "****"
+      password = "glc_****"
+    }
+  }
+}

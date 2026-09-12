@@ -1,0 +1,25 @@
+# config/alert_rules.yml
+groups:
+  - name: spring-boot-alerts
+    rules:
+      # 1. 서버 다운 (30초 이상)
+      - alert: InstanceDown
+        # 평가식 (expression -> metric으로 계산되는 상황에 대한 평가)
+        # expr: up{job="spring-boot-app"} == 0
+        expr: up{instance="app:8080"} == 0
+        # 1, 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Spring Boot 서버 인스턴스 다운"
+          description: "30초 이상 응답 X"
+      # 2. JVM 힙 사용량 (30%)
+      - alert: HighJVMHeapUsage
+        expr: jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"} > 0.3
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM 힙 사용량이 높음"
+          description: "30% 이상 사용 중"
